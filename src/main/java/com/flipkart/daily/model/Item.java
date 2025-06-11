@@ -1,12 +1,33 @@
 package com.flipkart.daily.model;
 
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "items")
 public class Item {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private String brand;
+
     private String category;
+
     private int price;
+
     private int quantity;
 
-    // Getters & Setters
+    // Getters and Setters
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
     public String getBrand() {
         return brand;
     }
@@ -39,7 +60,7 @@ public class Item {
         this.quantity = quantity;
     }
 
-    // Optional: override toString
+    // Optional: toString
     @Override
     public String toString() {
         return brand + " - " + category + " : ₹" + price + " (Qty: " + quantity + ")";
