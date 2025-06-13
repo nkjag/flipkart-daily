@@ -12,7 +12,17 @@ import org.springframework.data.domain.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.opencsv.exceptions.CsvValidationException;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.Parameter;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -88,5 +98,31 @@ public class InventoryController {
         service.deleteItem(brand, category);
         return "Item deleted successfully";
     }
+    @GetMapping("/export-csv")
+    public void exportCsv(HttpServletResponse response) {
+        try {
+            service.exportToCsv(response);
+        } catch (IOException e) {
+            throw new RuntimeException("Error exporting CSV: " + e.getMessage());
+        }
+    }
+    @Operation(
+            summary = "Upload inventory via CSV file",
+            description = "Parses a CSV file and adds or updates items in bulk"
+    )
+    @PostMapping(value = "/upload-csv", consumes = "multipart/form-data")
+    public ResponseEntity<String> uploadCsv(
+            @Parameter(description = "CSV file", required = true)
+            @RequestPart("file") MultipartFile file) {
+
+        try {
+            service.importFromCsv(file);
+            return ResponseEntity.ok("CSV upload successful!");
+        } catch (IOException | CsvValidationException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to process CSV: " + e.getMessage());
+        }
+    }
+
 
 }

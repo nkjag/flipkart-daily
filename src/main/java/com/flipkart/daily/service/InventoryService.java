@@ -12,6 +12,13 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 import java.util.function.Function;
 
+import com.flipkart.daily.util.CsvUtil;
+import com.opencsv.exceptions.CsvValidationException;
+import org.springframework.web.multipart.MultipartFile;
+
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
 @Service
 public class InventoryService {
 
@@ -89,4 +96,34 @@ public class InventoryService {
     public Page<Item> getPagedItems(Pageable pageable) {
         return repository.findAll(pageable);
     }
+    public void importFromCsv(MultipartFile file) throws IOException, CsvValidationException {
+        List<Item> items = CsvUtil.readItemsFromCsv(file);
+
+        for (Item item : items) {
+            boolean exists = repository.existsByBrandIgnoreCaseAndCategoryIgnoreCase(
+                    item.getBrand(), item.getCategory()
+            );
+            if (!exists) {
+                repository.save(item);
+            } else {
+                // Update existing item
+                Item existing = repository.findByBrandIgnoreCaseAndCategoryIgnoreCase(
+                        item.getBrand(), item.getCategory()
+                ).get();
+                existing.setPrice(item.getPrice());
+                existing.setQuantity(item.getQuantity());
+                repository.save(existing);
+            }
+        }
+    }
+    public void exportToCsv(HttpServletResponse response) throws IOException {
+        List<Item> items = repository.findAll();
+
+        response.setContentType("text/csv");
+        response.setHeader("Content-Disposition", "attachment; filename=inventory.csv");
+
+        CsvUtil.writeItemsToCsv(items, response.getOutputStream());
+    }
+
+
 }
