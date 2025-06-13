@@ -1,13 +1,16 @@
 package com.flipkart.daily.service;
 
+import com.flipkart.daily.dto.ItemResponse;
 import com.flipkart.daily.exception.ItemNotFoundException;
 import com.flipkart.daily.model.Item;
 import com.flipkart.daily.repository.ItemRepository;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
 @Service
 public class InventoryService {
@@ -36,14 +39,36 @@ public class InventoryService {
         return repository.findAll();
     }
 
-    public List<Item> searchItems(String brand, String category, Integer minPrice, Integer maxPrice, String sortBy) {
-        return repository.findAll().stream()
-                .filter(item -> brand == null || item.getBrand().equalsIgnoreCase(brand))
-                .filter(item -> category == null || item.getCategory().equalsIgnoreCase(category))
-                .filter(item -> minPrice == null || item.getPrice() >= minPrice)
-                .filter(item -> maxPrice == null || item.getPrice() <= maxPrice)
-                .sorted(getComparator(sortBy))
-                .collect(Collectors.toList());
+    // ✅ Updated: JPA-based filtered search with pagination and sorting
+    public Page<ItemResponse> searchItems(
+            String brand,
+            String category,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir
+    ) {
+        String brandFilter = brand != null ? brand : "";
+        String categoryFilter = category != null ? category : "";
+
+        Sort.Direction direction = "desc".equalsIgnoreCase(sortDir) ? Sort.Direction.DESC : Sort.Direction.ASC;
+        Sort sort = Sort.by(direction, sortBy != null ? sortBy : "price"); // default sort = price asc
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Item> itemsPage = repository.findByBrandIgnoreCaseContainingAndCategoryIgnoreCaseContaining(
+                brandFilter, categoryFilter, pageable
+        );
+
+        return itemsPage.map(toItemResponse());
+    }
+
+    private Function<Item, ItemResponse> toItemResponse() {
+        return item -> new ItemResponse(
+                item.getBrand(),
+                item.getCategory(),
+                item.getPrice(),
+                item.getQuantity()
+        );
     }
 
     public void updateItem(String brand, String category, int price, int quantity) {
@@ -61,15 +86,7 @@ public class InventoryService {
         }
         repository.deleteByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category);
     }
-
-    private Comparator<Item> getComparator(String sortBy) {
-        if (sortBy == null) return Comparator.comparingInt(Item::getPrice); // default
-
-        return switch (sortBy.toLowerCase()) {
-            case "price_desc" -> Comparator.comparingInt(Item::getPrice).reversed();
-            case "quantity_asc" -> Comparator.comparingInt(Item::getQuantity);
-            case "quantity_desc" -> Comparator.comparingInt(Item::getQuantity).reversed();
-            default -> Comparator.comparingInt(Item::getPrice); // default: price_asc
-        };
+    public Page<Item> getPagedItems(Pageable pageable) {
+        return repository.findAll(pageable);
     }
 }

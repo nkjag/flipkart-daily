@@ -8,7 +8,10 @@ import org.springframework.web.bind.annotation.*;
 import com.flipkart.daily.dto.AddItemRequest;
 import com.flipkart.daily.dto.ItemResponse;
 import com.flipkart.daily.dto.UpdateItemRequest;
-
+import org.springframework.data.domain.Page;
+import io.swagger.v3.oas.annotations.Operation;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 
@@ -49,21 +52,28 @@ public class InventoryController {
                 )).toList();
     }
 
+    @Operation(
+            summary = "Search items with filters, sorting, and pagination",
+            description = "You can search items by brand and category (case-insensitive), and apply pagination and sorting using query params."
+    )
     @GetMapping("/search")
-    public List<ItemResponse> searchItems(
+    public Page<ItemResponse> searchItems(
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) String category,
-            @RequestParam(required = false) Integer minPrice,
-            @RequestParam(required = false) Integer maxPrice,
-            @RequestParam(required = false) String sortBy
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "price") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir
     ) {
-        return service.searchItems(brand, category, minPrice, maxPrice, sortBy).stream()
-                .map(item -> new ItemResponse(
-                        item.getBrand(),
-                        item.getCategory(),
-                        item.getPrice(),
-                        item.getQuantity()
-                )).toList();
+        return service.searchItems(brand, category, page, size, sortBy, sortDir);
+    }
+    @Operation(
+            summary = "Paged listing using Spring Pageable (tests global defaults)",
+            description = "Returns all items using Pageable injection. Useful for testing global config from application.properties."
+    )
+    @GetMapping("/paged")
+    public Page<Item> getPagedItems(Pageable pageable) {
+        return service.getPagedItems(pageable);
     }
     @PutMapping("/update-item")
     public String updateItem(@Valid @RequestBody UpdateItemRequest request) {
