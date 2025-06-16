@@ -4,6 +4,9 @@ import com.flipkart.daily.dto.ItemResponse;
 import com.flipkart.daily.exception.ItemNotFoundException;
 import com.flipkart.daily.model.Item;
 import com.flipkart.daily.repository.ItemRepository;
+import com.flipkart.daily.log.AuditLogEntry;
+import com.flipkart.daily.log.AuditLogger;
+
 import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -32,14 +35,18 @@ public class InventoryService {
         boolean exists = repository.existsByBrandIgnoreCaseAndCategoryIgnoreCase(item.getBrand(), item.getCategory());
         if (!exists) {
             repository.save(item);
+            AuditLogger.log(new AuditLogEntry("ADD", item.getBrand(), item.getCategory(), item.getPrice(), item.getQuantity()));
         }
     }
+
 
     public void addInventory(String brand, String category, int quantity) {
         Item item = repository.findByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category)
                 .orElseThrow(() -> new ItemNotFoundException("Item not found in inventory: " + brand + " - " + category));
         item.setQuantity(item.getQuantity() + quantity);
         repository.save(item);
+
+        AuditLogger.log(new AuditLogEntry("ADD_QUANTITY", brand, category, item.getPrice(), item.getQuantity()));
     }
 
     public List<Item> getAllItems() {
@@ -84,15 +91,22 @@ public class InventoryService {
         item.setPrice(price);
         item.setQuantity(quantity);
         repository.save(item);
+
+        AuditLogger.log(new AuditLogEntry("UPDATE", brand, category, price, quantity));
     }
+
 
     public void deleteItem(String brand, String category) {
         boolean exists = repository.existsByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category);
         if (!exists) {
             throw new ItemNotFoundException("Item not found for delete: " + brand + " - " + category);
         }
+
         repository.deleteByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category);
+
+        //AuditLogger.log(new AuditLogEntry("DELETE", brand, category, 0, 0));
     }
+
     public Page<Item> getPagedItems(Pageable pageable) {
         return repository.findAll(pageable);
     }
@@ -105,17 +119,20 @@ public class InventoryService {
             );
             if (!exists) {
                 repository.save(item);
+                //AuditLogger.log(new AuditLogEntry("IMPORT_ADD", item.getBrand(), item.getCategory(), item.getPrice(), item.getQuantity()));
             } else {
-                // Update existing item
                 Item existing = repository.findByBrandIgnoreCaseAndCategoryIgnoreCase(
                         item.getBrand(), item.getCategory()
                 ).get();
                 existing.setPrice(item.getPrice());
                 existing.setQuantity(item.getQuantity());
                 repository.save(existing);
+
+                //AuditLogger.log(new AuditLogEntry("IMPORT_UPDATE", item.getBrand(), item.getCategory(), item.getPrice(), item.getQuantity()));
             }
         }
     }
+
     public void exportToCsv(HttpServletResponse response) throws IOException {
         List<Item> items = repository.findAll();
 
