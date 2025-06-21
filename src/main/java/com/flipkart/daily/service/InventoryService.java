@@ -14,6 +14,8 @@ import org.springframework.data.domain.Pageable;
 
 import java.util.List;
 import java.util.function.Function;
+import java.time.LocalDateTime;
+
 
 import com.flipkart.daily.util.CsvUtil;
 import com.opencsv.exceptions.CsvValidationException;
@@ -50,8 +52,11 @@ public class InventoryService {
     }
 
     public List<Item> getAllItems() {
-        return repository.findAll();
+        return repository.findAll().stream()
+                .filter(item -> !item.isDeleted())
+                .toList();
     }
+
 
     // ✅ Updated: JPA-based filtered search with pagination and sorting
     public Page<ItemResponse> searchItems(
@@ -97,15 +102,15 @@ public class InventoryService {
 
 
     public void deleteItem(String brand, String category) {
-        boolean exists = repository.existsByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category);
-        if (!exists) {
-            throw new ItemNotFoundException("Item not found for delete: " + brand + " - " + category);
-        }
+        Item item = repository.findByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category)
+                .orElseThrow(() -> new ItemNotFoundException("Item not found for delete: " + brand + " - " + category));
 
-        repository.deleteByBrandIgnoreCaseAndCategoryIgnoreCase(brand, category);
+        item.setDeleted(true);
+        item.setDeletedAt(LocalDateTime.now());
 
-        //AuditLogger.log(new AuditLogEntry("DELETE", brand, category, 0, 0));
+        repository.save(item);
     }
+
 
     public Page<Item> getPagedItems(Pageable pageable) {
         return repository.findAll(pageable);

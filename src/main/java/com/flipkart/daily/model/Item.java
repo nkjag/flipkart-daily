@@ -1,6 +1,7 @@
 package com.flipkart.daily.model;
 
 import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "items")
@@ -18,7 +19,13 @@ public class Item {
 
     private int quantity;
 
-    // Getters and Setters
+    @Column(name = "is_deleted")
+    private boolean isDeleted = false;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // ────────────── Getters & Setters ────────────── //
 
     public Long getId() {
         return id;
@@ -60,7 +67,24 @@ public class Item {
         this.quantity = quantity;
     }
 
-    // Optional: toString
+    public boolean isDeleted() {
+        return isDeleted;
+    }
+
+    public void setDeleted(boolean deleted) {
+        this.isDeleted = deleted;
+    }
+
+    public LocalDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(LocalDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    // ────────────── Optional: toString ────────────── //
+
     @Override
     public String toString() {
         return brand + " - " + category + " : ₹" + price + " (Qty: " + quantity + ")";
